@@ -132,11 +132,7 @@ Hook 需要 Python（Windows 用 `py` 啟動）；`arch-test-check.py` 在 Windo
 - 判斷進度時只確認測試存在，測試有沒有驗到需求，要靠 `unit-test` 和 `spec-review`
 - Hook 只在 Claude 執行 `git commit` 時作用，人自己 commit 不會觸發
 
-## 關於這個專案
-
-流程由我主導設計，規則內容是我在實際開發中，和 Claude 討論、踩坑後逐步整理出來的。Skill 的文字大多由 Claude 協作撰寫，每條規則要不要留、怎麼取捨，由我決定。
-
-## 致謝
+## 關聯 Skill
 
 第 1 步規劃用來把未定決策問清楚的 `grilling`，以及產出給 PM、後端問卷的 `to-questionnaire`，來自 [Matt Pocock 的 skills](https://github.com/mattpocock/skills)。這個 repo 沒有複製這些 skill，只在流程中呼叫，請從原 repo 安裝。
 
