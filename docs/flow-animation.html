@@ -1,0 +1,464 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset=utf8><title>my-flow 流程動畫</title><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<style>
+/* 版面：上方七步進度條；中間是「舞台」，七個角色圍著 Claude 站，文件卡在他們之間飛；右邊是目前角色的權限卡 */
+:root {
+  --bg: #ece8df;
+  --stage: #f8f5ee;
+  --surface: #fffdf8;
+  --ink: #23201b;
+  --muted: #6b645a;
+  --line: #d8d1c3;
+  --accent: #2f5d8a;
+  --lock: #b0442f;
+  --c-you: #e0794a;
+  --c-claude: #c9824f;
+  --c-pm: #8a6fb8;
+  --c-phone: #3f8f7a;
+  --c-rev: #3c6fae;
+  --c-check: #b5893a;
+  --c-hook: #6d7480;
+  --font-body: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17150f; --stage: #211e17; --surface: #2a261e; --ink: #ece6da; --muted: #a59d8f; --line: #3e382d;
+    --accent: #7fb0e0; --lock: #ec8a73;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17150f; --stage: #211e17; --surface: #2a261e; --ink: #ece6da; --muted: #a59d8f; --line: #3e382d;
+  --accent: #7fb0e0; --lock: #ec8a73;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); line-height: 1.6; }
+.wrap {
+  max-width: 1080px; margin: 0 auto; display: grid; gap: 14px;
+  padding-block: 24px 44px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header h1 { margin: 0; font-size: 1.7rem; font-weight: 900; text-wrap: balance; }
+header p { margin: 2px 0 0; color: var(--muted); max-width: 64ch; }
+
+.steps { display: grid; grid-template-columns: 1fr; gap: 6px; align-self: start; }
+.steps div { font-size: .82rem; text-align: center; padding: 6px 2px; border-radius: 6px; background: var(--surface); color: var(--muted); border: 1px solid var(--line); min-width: 0; overflow-wrap: anywhere; }
+.steps div b { display: block; font-family: var(--font-mono); font-size: .75rem; }
+.steps div.on { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.steps div.done { color: var(--ink); }
+
+.main { display: grid; grid-template-columns: 104px minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+.stage {
+  position: relative; aspect-ratio: 16 / 10; max-width: 100%; border-radius: 16px; overflow: hidden;
+  background: var(--stage); border: 1px solid var(--line);
+}
+.stage::before { /* 中間的「桌面」 */
+  content: ""; position: absolute; left: 30%; right: 30%; top: 36%; bottom: 36%;
+  border-radius: 50%; border: 2px dashed var(--line);
+}
+.actor { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; color: inherit; }
+.ava {
+  --s: clamp(40px, 7.5vw, 62px);
+  width: var(--s); height: var(--s); border-radius: 50%; background: var(--c); position: relative;
+  box-shadow: 0 3px 0 rgba(0,0,0,.18); transition: transform .25s, box-shadow .25s;
+}
+.ava::before { /* 眼睛 */
+  content: ""; position: absolute; width: 12%; height: 12%; border-radius: 50%; background: #1d1a15;
+  left: 30%; top: 38%; box-shadow: calc(var(--s) * .28) 0 0 #1d1a15;
+}
+.ava::after { /* 嘴巴 */
+  content: ""; position: absolute; left: 38%; width: 24%; top: 58%; height: 8%;
+  border-bottom: 3px solid #1d1a15; border-radius: 0 0 50% 50%;
+}
+.actor .nm { font-weight: 900; font-size: clamp(.72rem, 1.6vw, .92rem); white-space: nowrap; }
+.actor .rl { font-size: clamp(.62rem, 1.3vw, .74rem); color: var(--muted); white-space: nowrap; }
+.actor.act .ava { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--c); animation: hop .5s ease-in-out infinite alternate; }
+.actor.act .ava::after { animation: talk .22s steps(2) infinite; }
+.actor.tgt .ava { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--line); }
+.actor.wave .ava { animation: hop .4s ease-in-out infinite alternate; }
+.actor.dim { opacity: .45; }
+@keyframes hop { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+@keyframes talk { 0% { height: 8%; } 100% { height: 16%; border-radius: 0 0 60% 60%; background: #1d1a15; } }
+.stage.paused *, .stage.paused *::after, .stage.paused *::before { animation-play-state: paused !important; }
+
+.bubble {
+  position: absolute; left: 0; top: 0; max-width: min(46%, 220px); padding: 6px 10px; border-radius: 12px;
+  background: var(--surface); border: 2px solid var(--bc, var(--line)); font-size: clamp(.7rem, 1.5vw, .86rem); font-weight: 700;
+  line-height: 1.45; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 3;
+}
+.bubble.show { opacity: 1; }
+.card {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); z-index: 4; pointer-events: none;
+  padding: 4px 9px; border-radius: 4px; background: var(--surface); border: 1.5px solid var(--ink);
+  font-family: var(--font-mono); font-size: clamp(.62rem, 1.35vw, .78rem); white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--ink); opacity: 0; transition: opacity .2s;
+}
+.card.show { opacity: 1; }
+.card .lk { display: block; font-family: var(--font-body); font-weight: 700; color: var(--lock); font-size: .9em; }
+
+.side { display: grid; gap: 12px; }
+.perm { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 8px; }
+.perm .who { display: flex; align-items: center; gap: 10px; }
+.perm .dot { width: 28px; height: 28px; border-radius: 50%; background: var(--c); flex: none; }
+.perm h2 { margin: 0; font-size: 1.1rem; font-weight: 900; }
+.perm .rl { color: var(--muted); font-size: .82rem; }
+.perm h3 { margin: 4px 0 0; font-size: .8rem; letter-spacing: .06em; color: var(--muted); }
+.perm ul { margin: 0; padding-left: 1.1em; font-size: .88rem; display: grid; gap: 2px; }
+.perm ul.no li::marker { color: var(--lock); }
+.hint { margin: 0; font-size: .8rem; color: var(--muted); }
+
+.cap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; display: grid; gap: 6px; }
+.cap p { margin: 0; font-size: 1.02rem; min-height: 2.9em; }
+.skill { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.skill small { color: var(--muted); font-size: .8rem; }
+.skill b { font-family: ui-monospace, Consolas, monospace; font-size: 1.08rem; padding: 2px 10px; border-radius: 6px; background: var(--ink); color: var(--surface); }
+.skill span { color: var(--muted); font-size: .92rem; }
+.cap .lockline { color: var(--lock); font-weight: 700; font-size: .88rem; min-height: 1.3em; margin-top: -4px; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ctrl button, .ctrl select { font: inherit; font-size: .88rem; padding: 6px 13px; border-radius: 8px; cursor: pointer; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+.ctrl #play { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; min-width: 5.5em; }
+.ctrl .count { margin-left: auto; font-family: var(--font-mono); font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: .88em; }
+
+@media (max-width: 800px) {
+  .main { grid-template-columns: 1fr; }
+  .stage { aspect-ratio: 3 / 4; }
+  .steps { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .steps div { font-size: .62rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actor.act .ava, .actor.wave .ava, .actor.act .ava::after { animation: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>my-flow 流程動畫</h1>
+    <p>開發一個功能時，誰負責做什麼、誰不能做什麼。例子是假情境：做一個登入頁。點任何一個角色，右邊會換成那個角色的權限。</p>
+  </header>
+
+  <section class="cap">
+    <div class="skill"><small>現在用的</small><b id="skName"></b><span id="skDesc"></span></div>
+    <p id="cap" aria-live="polite"></p>
+    <p class="lockline" id="lockline"></p>
+    <div class="ctrl">
+      <button id="prev" type="button">上一段</button>
+      <button id="play" type="button">暫停</button>
+      <button id="next" type="button">下一段</button>
+      <button id="replay" type="button">重播</button>
+      <select id="speed" aria-label="播放速度">
+        <option value="0.6">慢</option>
+        <option value="1" selected>正常</option>
+        <option value="1.8">快</option>
+      </select>
+      <select id="mode" aria-label="播放方式">
+        <option value="auto">自動連播</option>
+        <option value="step">一段一段</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+  </section>
+
+  <div class="main">
+    <div class="steps" id="steps"></div>
+    <div class="stage" id="stage"></div>
+    <div class="side">
+      <section class="perm" id="perm" aria-live="polite"></section>
+      <p class="hint">紅色標記＝這個動作要你同意才會做。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const STEP_NAMES = ['規劃', '實作＋測試', '高風險實機', '審查＋實機', '回歸', '交付文件', '收尾'];
+
+const ACTORS = {
+  pm:      { name: 'PM／後端', role: '回答問卷', c: '--c-pm', x: 50, y: 15, xm: 50, ym: 10,
+             can: ['回答問卷裡的題目'], cannot: ['被開發卡住：開發先用暫定答案往下做，答案回來再對'] },
+  phone:   { name: '手機', role: '照情境走實機', c: '--c-phone', x: 15, y: 28, xm: 18, ym: 30,
+             can: ['照情境在實機走一遍', '截圖跟 Figma 畫面並排比', '量字級、顏色、間距跟 code 對照'], cannot: ['你同意之前就開始'] },
+  checker: { name: '核對員', role: '交付文件 subagent', c: '--c-check', x: 85, y: 28, xm: 82, ym: 30,
+             can: ['對照交付 HTML 跟 code、截圖、審查結果', '列出對不上的地方'], cannot: ['自己改文件，只回報'] },
+  claude:  { name: 'Claude', role: '主線，寫 code 的人', c: '--c-claude', x: 50, y: 50, xm: 50, ym: 50,
+             can: ['寫規格、code、測試', '跑回歸、寫交付文件', '用 /my-flow 判斷進度和下一步'],
+             cannot: ['自己 commit、push、開 MR','替你或 PM 決定沒定的事', '沒問你就動手機', '自己放行新的失敗、差異或 lint 警告'] },
+  hook:    { name: '守門 hook', role: 'commit 前自動檢查', c: '--c-hook', x: 15, y: 62, xm: 18, ym: 72,
+             can: ['commit 前對照等待標記的題名', '跑專案宣告的架構測試指令，沒過就擋下'], cannot: ['替你做決定：題名對不上只提醒'] },
+  reviewer:{ name: 'Reviewer', role: '審查 subagent', c: '--c-rev', x: 85, y: 62, xm: 82, ym: 72,
+             can: ['讀規格、diff、實機結果', '列出必修、應修、可選'], cannot: ['改 code', '看到 Claude 的對話：只拿規格和結果，才不會被說服'] },
+  you:     { name: '你', role: '做決定的人', c: '--c-you', x: 50, y: 84, xm: 50, ym: 90,
+             can: ['決定規格裡沒定的事', '確認高風險情境、補漏', '同意 commit、push、開 MR','打 to-questionnaire 出問卷', '同意保留某個問題'], cannot: [] },
+};
+
+const SKILLS = {
+  'my-flow':          { n: '/my-flow', d: '看流程和目前進度，告訴你下一步叫什麼' },
+  'feature-doc':      { n: '/feature-doc', d: '把功能規格寫成文件：情境、分組、高風險、待辦表' },
+  'grilling':         { n: 'grilling（grill-me）', d: '把你能決定、還沒定的事一題一題問清楚' },
+  'to-questionnaire': { n: 'to-questionnaire', d: '把只有 PM／後端能答的題整理成問卷，只有你能打' },
+  'arch-test':        { n: '/arch-test', d: '把架構規則寫成違規就會紅的測試' },
+  'unit-test':        { n: '/unit-test', d: '對合約骨架寫測試：先紅、再綠、再故意改壞' },
+  'answer':           { n: '問卷答案回來（/my-flow 的一節）', d: '找出用暫定答案的地方，答案不同就回頭改' },
+  'device-check':     { n: '/device-check', d: '在手機上照情境走一遍，跟 Figma 並排比' },
+  'spec-review':      { n: '/spec-review', d: '派全新 subagent，只看規格、diff、實機結果找問題' },
+  'regression':       { n: '回歸（/my-flow 第 5 步）', d: '不是獨立 skill：靜態檢查＋完整測試，跟開工前的基線比' },
+  'blocked':          { n: '/blocked', d: '列出還卡著、還沒做完的事' },
+  'delivery-doc':     { n: '/delivery-doc', d: '產出交付 HTML，再派 subagent 核對文件跟 code' },
+  'commit':           { n: 'git commit', d: '不是 skill：Claude 要先問你才能做' },
+  'hook':             { n: 'commit 前的 hook', d: '不是 skill：核對題名只提醒，架構測試沒過會擋下' },
+  'feedback':         { n: '回饋規則（/my-flow 第 7 步）', d: '不是獨立 skill：同一類問題第二次出現就補成規則' },
+  'verify-feature':   { n: '/verify-feature', d: '合併、解完衝突後，確認 code 沒偏離規格' },
+  'mr':               { n: '開 MR', d: '不是這個 repo 的 skill：等你同意才做' },
+};
+
+// k: 這段用的 skill；s: 第幾步；a: 說話的人；to: 文件卡飛向誰；item: 卡片上的字；say／reply: 對白；lock: 要你同意
+const SCENES = [
+  { s: 1, k: 'my-flow', a: 'you', to: 'claude', item: '需求：登入頁', say: '做一個登入頁', cap: '你開工，叫 /my-flow。Claude 先看流程和目前進度。' },
+  { s: 1, k: 'feature-doc', a: 'claude', item: 'feature-doc', say: '先把規格寫下來', cap: 'Claude 寫規格：情境、分組、每組標高風險，還有照哪個既有實作做。' },
+  { s: 1, k: 'feature-doc', a: 'claude', to: 'you', item: '5 種狀態對照', say: '空清單 Figma 沒畫', reply: '列進問卷', cap: '每個畫面對一次 5 種狀態：空清單、錯誤、載入中、長文字、系統大字體。Figma 沒畫的不自己決定長相，列進給 PM 的問卷。' },
+  { s: 1, k: 'grilling', a: 'claude', to: 'you', item: '還沒定的決策', say: '密碼錯幾次要鎖？', reply: '5 次，鎖 15 分鐘', cap: '你能決定的事，用 grilling 一題一題問你。Claude 不自己猜。' },
+  { s: 1, k: 'to-questionnaire', a: 'claude', to: 'you', item: '只有 PM 能答', say: '這題要問 PM', reply: '我來出問卷', cap: '只有 PM 或後端能答的題，Claude 提醒你出問卷。to-questionnaire 只有你能打。' },
+  { s: 1, k: 'to-questionnaire', a: 'you', to: 'pm', item: '問卷', say: '忘記密碼走哪支 API？', reply: '收到，晚點回', cap: '問卷送出去，開發不等。先用暫定答案做，code 標 TODO(等PM)。' },
+  { s: 1, k: 'feature-doc', a: 'claude', to: 'you', item: '分組：帳密登入／忘記密碼', say: '分兩組，帳密登入是高風險', reply: '同意', cap: '規格按功能分組，每條情境標好怎麼驗（單元測試或上手機），每組標高風險是或否，給你確認。' },
+  { s: 1, k: 'feature-doc', a: 'claude', to: 'you', item: '高風險情境表', say: '這幾條要上手機', reply: '加一條：登入中切背景', cap: '登入是高風險組。Claude 逐條列情境和要不要上手機，你補漏或剔除。' },
+  { s: 1, k: 'arch-test', a: 'claude', to: 'you', item: '還沒有架構測試', say: '這專案還沒有架構測試，要先建嗎？', reply: '架構測試是什麼？', cap: '專案沒有架構測試時，Claude 只提醒可以先跑 /arch-test，不會自己叫。建不建由你決定。' },
+  { s: 1, k: 'arch-test', a: 'claude', to: 'you', item: '例：畫面層 ✕→ 資料庫', say: '把「誰可以依賴誰」寫成測試', reply: '違規會怎樣？', cap: '架構規則平常只寫在文件裡，靠人記。架構測試把它寫成測試，例如「畫面層不能直接碰資料庫，要經過 Repository」。' },
+  { s: 1, k: 'arch-test', a: 'claude', item: '規則 A1 失敗', say: 'LoginScreen 直接用了 UserDao，請改走 Repository', cap: '有人違規，測試就變紅。每條規則有編號，失敗訊息寫出哪個檔、實際依賴了什麼、應該怎麼改。舊專案原本就違規的地方列成例外清單，只能變短、不能變長。' },
+  { s: 1, k: 'arch-test', a: 'claude', to: 'you', item: '/arch-test', say: '舊專案照現有 code 整理規則', reply: '好，先建', cap: '規則從現有 code 整理，不重新設計。每條都要證明「綠 → 故意違規變紅 → 還原變綠」，確定真的擋得住。建好之後，回歸和 commit 前都會自動跑到。不建也照常往下。' },
+  { s: 2, k: 'unit-test', a: 'claude', item: '合約骨架', say: '先立型別、介面、fake、空殼', cap: '每組先立合約骨架：型別、介面、假資料、空殼，測試對著骨架寫。' },
+  { s: 2, k: 'unit-test', a: 'claude', item: '測試：紅 → 綠 → 改壞', say: '先紅，再綠，再故意改壞', cap: '先寫測試跑出紅燈，實作到綠，再把 code 故意改壞，確認測試真的會紅。' },
+  { s: 2, k: 'feature-doc', a: 'claude', to: 'you', item: '規格要改', say: '錯誤訊息要分兩種，規格先改好了', reply: 'OK', cap: '做到一半發現規格要改：先改規格文件給你確認，再改 code，不會先改 code 再補文件。' },
+  { s: 2, k: 'answer', a: 'pm', to: 'claude', item: '問卷答案', say: '忘記密碼走 /reset', reply: '跟暫定不同，回頭改', cap: '問卷答案回來：用題名搜出所有用暫定答案的地方。答案不同就先讓測試變紅再改到綠，最後拿掉 TODO(等PM)。過了第 4 步才回來的話，審查、實機、回歸都要部分重跑。' },
+  { s: 3, k: 'device-check', a: 'claude', to: 'you', item: '要動手機', say: '要上手機了，可以嗎？', reply: '可以', lock: true, cap: '高風險組做完，後面還有別組要做，就先上手機（最後一組剛好是高風險就跳過，第 4 步一起走）。動手機前一定先問你。' },
+  { s: 3, k: 'device-check', a: 'claude', to: 'phone', item: '高風險情境 4 條', say: '照這 4 條走', reply: '切背景回來還在登入中，通過', cap: '手機只走這組標「要」的情境，畫面跟 Figma 並排比。' },
+  { s: 3, k: 'device-check', a: 'phone', to: 'claude', item: 'device-check.md', say: '4 條都過了', cap: '實機結果寫進 device-check.md。沒有實機編號，這組不能標完成。' },
+  { s: 4, k: 'spec-review', a: 'claude', to: 'reviewer', item: '規格＋diff＋實機結果', say: '請審這次的改動', reply: '我只看這三樣', cap: '全部組做完，審查和全部實機同時開跑。Reviewer 是全新的 subagent，只拿規格、diff、實機結果，看不到你們的對話，所以不會被說服。' },
+  { s: 4, k: 'device-check', a: 'claude', to: 'you', item: '全部情境上手機', say: '手機要走全部情境，可以嗎？', reply: '可以', lock: true, cap: '審查在背景跑的同時，手機走全部情境，不只高風險組。動手機一樣先問你。' },
+  { s: 4, k: 'device-check', a: 'phone', to: 'claude', item: 'device-check.md', say: '1 條失敗、1 處字級對不上', cap: '實機的失敗和畫面、數值差異，都併進這輪修正。' },
+  { s: 4, k: 'spec-review', a: 'reviewer', to: 'claude', item: 'spec-review.md', say: '2 條必修', cap: '它只回報問題，不改 code。修是 Claude 的事。' },
+  { s: 4, k: 'spec-review', a: 'claude', to: 'reviewer', item: '修正（審查＋實機）', say: '改好了，請複查', reply: '複查通過', cap: '同一位 Reviewer 複查，最多 3 輪；3 輪還沒過就停下來交給你決定。' },
+  { s: 4, k: 'device-check', a: 'claude', to: 'phone', item: '失敗的那條＋受影響的', say: '修好了，重走這幾條', reply: '通過', cap: 'Reviewer 複查只看 code，不算實機重驗。實機失敗的修好後，手機重走那條和被修正影響的情境（一樣先問過你）。' },
+  { s: 4, k: 'spec-review', a: 'claude', to: 'you', item: '處置清單', say: '字級差 1sp 這處要保留嗎？', reply: '保留，Figma 標錯了', lock: true, cap: '每個問題都要有處置：修好重驗、查證不成立附依據，或你同意保留並寫下理由。寫「預計修正」的不算過。' },
+  { s: 5, k: 'regression', a: 'claude', to: 'you', item: '待辦表：App 的 2 項', say: '回歸前要先做這 2 項嗎？', reply: '先做「記住帳號」，另一項下次', cap: '回歸前，Claude 先把待辦表裡屬於 App、不用等別人的事列給你，由你決定要不要先做。' },
+  { s: 5, k: 'regression', a: 'claude', item: 'lint＋架構檢查＋全部測試', say: '跑靜態檢查和完整測試', cap: '回歸要跑兩樣：靜態檢查（含架構檢查）和完整測試。只跑這次改到的測試不算。' },
+  { s: 5, k: 'regression', a: 'claude', item: '跟基線比', say: '比開工前多了 1 條 lint 警告', cap: '基線＝這次改動開始前那個版本，跑同一組檢查。兩邊比，只看「多出來的」：新增的失敗、新增的 lint 警告。原本就壞的不算這次的帳。' },
+  { s: 5, k: 'regression', a: 'claude', to: 'you', item: '例外：新增 1 條 lint', say: '這條要修還是保留？', reply: '保留，是套件的警告', lock: true, cap: '有新增的失敗或警告，Claude 不能自己放行：要嘛修掉，要嘛你同意保留並寫下理由。' },
+  { s: 5, k: 'regression', a: 'claude', item: 'regression.md', say: '回歸通過', cap: '結論、每項例外的處置都寫進 regression.md。之後只要再改 code，回歸就要重跑一次。' },
+  { s: 6, k: 'blocked', a: 'claude', item: '/blocked 清點', say: '還有 1 項留到下次', cap: '寫交付文件前先清點還卡著、還沒做的事，結果放進文件第 8 段。' },
+  { s: 6, k: 'delivery-doc', a: 'claude', to: 'checker', item: '交付 HTML（8 段）', say: '請核對這份文件', reply: '流程圖第 3 步跟 code 對不上', cap: '核對員是另一個 subagent，把文件跟 code、截圖逐條對，只回報不改。' },
+  { s: 6, k: 'delivery-doc', a: 'checker', to: 'claude', item: '對不上清單', say: '共 1 處', reply: '改好了', cap: 'Claude 照清單改文件，改完核對員再看一次。' },
+  { s: 7, k: 'commit', a: 'claude', to: 'you', item: 'commit', say: '可以 commit 了嗎？', reply: '可以', lock: true, cap: 'commit、push、開 MR 都要你點頭。' },
+  { s: 7, k: 'hook', a: 'claude', to: 'hook', item: 'git commit', say: 'commit 囉', reply: '題名一致、架構測試通過', cap: 'commit 前守門 hook 自動檢查。題名對不上只提醒，架構測試沒過會擋下。' },
+  { s: 7, k: 'feedback', a: 'claude', to: 'you', item: '回饋規則', say: '這個坑第二次了，要補成規則嗎？', reply: '補', cap: '收尾：審查、實機、回歸抓到的問題逐條看，同一類第二次出現就補成規則，補什麼、補在哪先給你確認。' },
+  { s: 7, k: 'feedback', a: 'claude', to: 'reviewer', item: '原本出事的情境', say: '換你遇到這情況會怎麼做？', reply: '照新規則先查 Figma', cap: '規則補完要驗：開一個新的 subagent，只給當初出事的情境、不給答案，看它有沒有讀到新規則、照著做。' },
+  { s: 7, k: 'verify-feature', a: 'claude', item: '/verify-feature', say: '合併完，再對一次規格', cap: '合併、解完衝突後跑 /verify-feature，確認合併沒讓 code 偏離規格。' },
+  { s: 7, k: 'mr', a: 'claude', to: 'you', item: 'MR', say: '開 MR 可以嗎？', reply: '可以', lock: true, cap: '開 MR 一樣要你點頭。' },
+  { s: 7, k: 'my-flow', a: null, say: '', cap: '走完了。任何時候叫 /my-flow，都會告訴你現在在第幾步、下一步叫什麼。', end: true },
+];
+
+const $ = id => document.getElementById(id);
+const stage = $('stage');
+const narrow = matchMedia('(max-width: 800px)');
+const actorEls = {};
+for (const id in ACTORS) {
+  const a = ACTORS[id];
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'actor'; b.style.setProperty('--c', `var(${a.c})`);
+  b.innerHTML = `<span class="ava"></span><span class="nm"></span><span class="rl"></span>`;
+  b.querySelector('.nm').textContent = a.name;
+  b.querySelector('.rl').textContent = a.role;
+  b.setAttribute('aria-label', a.name + '的權限');
+  b.addEventListener('click', () => showPerm(id));
+  stage.appendChild(b);
+  actorEls[id] = b;
+}
+function layout() {
+  for (const id in ACTORS) {
+    const a = ACTORS[id], m = narrow.matches;
+    actorEls[id].style.setProperty('--x', (m ? a.xm : a.x) + '%');
+    actorEls[id].style.setProperty('--y', (m ? a.ym : a.y) + '%');
+  }
+}
+layout();
+narrow.addEventListener('change', () => { layout(); if (SCENES[idx]) prepare(idx); });
+
+const bA = document.createElement('div'); bA.className = 'bubble'; stage.appendChild(bA);
+const bB = document.createElement('div'); bB.className = 'bubble'; stage.appendChild(bB);
+const card = document.createElement('div'); card.className = 'card'; stage.appendChild(card);
+
+const stepsEl = $('steps');
+STEP_NAMES.forEach((n, i) => { const d = document.createElement('div'); d.innerHTML = `<b>${i + 1}</b>`; d.append(n); stepsEl.appendChild(d); });
+
+function showPerm(id) {
+  const a = ACTORS[id];
+  const p = $('perm');
+  p.style.setProperty('--c', `var(${a.c})`);
+  const li = arr => arr.map(t => { const e = document.createElement('li'); e.textContent = t; return e; });
+  p.replaceChildren();
+  const who = document.createElement('div'); who.className = 'who';
+  who.innerHTML = '<span class="dot"></span><div><h2></h2><div class="rl"></div></div>';
+  who.querySelector('h2').textContent = a.name; who.querySelector('.rl').textContent = a.role;
+  p.appendChild(who);
+  const h1 = document.createElement('h3'); h1.textContent = '可以'; p.appendChild(h1);
+  const u1 = document.createElement('ul'); u1.append(...li(a.can)); p.appendChild(u1);
+  if (a.cannot.length) {
+    const h2 = document.createElement('h3'); h2.textContent = '不可以'; p.appendChild(h2);
+    const u2 = document.createElement('ul'); u2.className = 'no'; u2.append(...li(a.cannot)); p.appendChild(u2);
+  }
+}
+
+function center(id) {
+  const r = actorEls[id].querySelector('.ava').getBoundingClientRect(), s = stage.getBoundingClientRect();
+  return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2, top: r.top - s.top, bottom: r.bottom - s.top + 34 };
+}
+function placeBubble(b, id, text) {
+  b.textContent = text;
+  b.style.setProperty('--bc', `var(${ACTORS[id].c})`);
+  const c = center(id), sw = stage.clientWidth, sh = stage.clientHeight;
+  const w = b.offsetWidth, h = b.offsetHeight;
+  if (id === 'claude' || id === 'you') { // 中間欄上下太近：對白放左側，文件卡在右側
+    const r = actorEls[id].querySelector('.ava').offsetWidth / 2;
+    b.style.left = Math.max(4, c.x - r - 12 - w) + 'px';
+    b.style.top = Math.max(4, Math.min(c.y - h / 2, sh - h - 4)) + 'px';
+    return;
+  }
+  let top = c.top - h - 8;
+  if (top < 4) top = c.bottom;
+  top = Math.min(top, sh - h - 4);
+  const left = Math.max(4, Math.min(c.x - w / 2, sw - w - 4));
+  b.style.left = left + 'px'; b.style.top = top + 'px';
+}
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let idx = 0, gen = 0, paused = reduce, ended = false, speed = 1, waiting = false, step = false;
+try { step = localStorage.getItem('myflow-mode') === 'step'; } catch (err) {}
+let from = null, dest = null;
+
+// 切段時直接隱藏：留著淡出的話，換好的新文字會先閃一下
+function hideNow(el) {
+  el.style.transition = 'none';
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.style.transition = '';
+}
+function prepare(i) {
+  const sc = SCENES[i];
+  [...stepsEl.children].forEach((d, k) => { d.classList.toggle('on', k + 1 === sc.s); d.classList.toggle('done', k + 1 < sc.s); });
+  for (const id in actorEls) {
+    const e = actorEls[id];
+    e.classList.toggle('act', id === sc.a);
+    e.classList.toggle('tgt', id === sc.to);
+    e.classList.toggle('wave', !!sc.end);
+    e.classList.toggle('dim', !sc.end && id !== sc.a && id !== sc.to);
+  }
+  [bA, bB, card].forEach(hideNow);
+  const sk = SKILLS[sc.k];
+  $('skName').textContent = sk.n;
+  $('skDesc').textContent = sk.d;
+  $('cap').textContent = sc.cap;
+  const ll = $('lockline');
+  ll.textContent = sc.lock ? '要你同意：你說「可以」之前，Claude 不會做這件事。' : '';
+  $('count').textContent = (i + 1) + ' / ' + SCENES.length;
+  $('prev').disabled = i === 0;
+  $('next').disabled = i === SCENES.length - 1;
+  if (sc.a) showPerm(sc.a);
+  if (!sc.a) return;
+  if (sc.say) placeBubble(bA, sc.a, sc.say);
+  if (sc.item) {
+    card.replaceChildren(document.createTextNode(sc.item));
+    if (sc.lock) { const l = document.createElement('span'); l.className = 'lk'; l.textContent = '要你同意'; card.appendChild(l); }
+    from = cardSpot(sc.a);
+    dest = sc.to ? cardSpot(sc.to) : from;
+    moveCard(0);
+  }
+}
+// 文件卡停在角色旁邊（朝舞台中央那側），不蓋臉、不疊對白氣泡
+function cardSpot(id) {
+  const c = center(id), sw = stage.clientWidth, sh = stage.clientHeight;
+  const w = card.offsetWidth, h = card.offsetHeight;
+  const r = actorEls[id].querySelector('.ava').offsetWidth / 2;
+  const dir = c.x > sw / 2 + 1 ? -1 : 1;
+  const x = Math.max(w / 2 + 4, Math.min(c.x + dir * (r + 12 + w / 2), sw - w / 2 - 4));
+  const y = Math.max(h / 2 + 4, Math.min(c.y, sh - h / 2 - 4));
+  return { x, y };
+}
+function moveCard(p) {
+  const e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+  const x = from.x + (dest.x - from.x) * e;
+  const y = from.y + (dest.y - from.y) * e - Math.sin(Math.PI * e) * 50;
+  card.style.left = x + 'px'; card.style.top = y + 'px';
+}
+
+function frames(dur, my, onP) {
+  return new Promise(res => {
+    let el = 0, last = null;
+    const f = ts => {
+      if (my !== gen) return res(false);
+      if (last === null) last = ts;
+      const dt = ts - last; last = ts;
+      if (!paused) el += dt * speed;
+      const p = dur <= 0 ? 1 : Math.min(1, el / dur);
+      if (onP) onP(p);
+      if (p < 1) requestAnimationFrame(f); else res(true);
+    };
+    requestAnimationFrame(f);
+  });
+}
+const T = ms => reduce ? 0 : ms;
+
+async function run() {
+  const my = ++gen;
+  ended = false; waiting = false;
+  while (true) {
+    prepare(idx);
+    const sc = SCENES[idx];
+    if (sc.say) { bA.classList.add('show'); if (!await frames(T(700), my)) return; }
+    if (sc.item) { card.classList.add('show'); if (!await frames(T(sc.to ? 1100 : 600), my, moveCard)) return; }
+    if (sc.reply && sc.to) {
+      placeBubble(bB, sc.to, sc.reply); bB.classList.add('show');
+      actorEls[sc.to].classList.add('act'); actorEls[sc.a].classList.remove('act');
+    }
+    if (idx === SCENES.length - 1) { ended = true; paused = true; syncPlay(); return; }
+    if (step) { waiting = true; syncPlay(); return; }
+    if (!await frames(1400 + sc.cap.length * 40, my)) return;
+    idx++;
+  }
+}
+function syncPlay() {
+  $('play').textContent = ended ? '從頭播' : waiting ? '播下一段' : paused ? '播放' : '暫停';
+  stage.classList.toggle('paused', paused && !ended);
+}
+// 一段一段：每段播完停住，按下一段才繼續；上一段／下一段會直接播那一段
+function go(d) {
+  const i = idx + d;
+  if (i < 0 || i > SCENES.length - 1) return;
+  idx = i;
+  if (step) paused = false;
+  run(); syncPlay();
+}
+
+$('play').addEventListener('click', () => {
+  if (ended) { idx = 0; paused = false; syncPlay(); run(); return; }
+  if (waiting) { go(1); return; }
+  paused = !paused; syncPlay();
+});
+$('next').addEventListener('click', () => go(1));
+$('prev').addEventListener('click', () => go(-1));
+$('mode').value = step ? 'step' : 'auto';
+$('mode').addEventListener('change', e => {
+  step = e.target.value === 'step';
+  try { localStorage.setItem('myflow-mode', e.target.value); } catch (err) {}
+  if (!step && waiting) go(1);
+});
+$('replay').addEventListener('click', () => { idx = 0; paused = false; syncPlay(); run(); });
+$('speed').addEventListener('change', e => { speed = parseFloat(e.target.value) || 1; });
+
+syncPlay();
+run();
+</script>
+
+</body></html>
